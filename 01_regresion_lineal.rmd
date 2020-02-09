@@ -1,0 +1,121 @@
+---
+title: "01_regresion_lineal"
+author: "Francisco Paz"
+date: "2/9/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(knitr)
+```
+
+El propósito de este r-markdown es prácticar la regresión lineal usando R (más adelante veremos como funciona lo mismo pero en Python). 
+
+Como vimo la clase pasada, existen distintas aproximaciones al problema, uno de ellos es el uso de mínimos cuadrados; en este caso veremos la implementación usando **Gradiente Descendente** y lo compararemos con la funcion _lm_ que viene en la paquetería básica de R.
+```{r }
+z_0 <- 5
+eta <- 0.4
+descenso <- function(n, z_0, eta, h_deriv){
+  z <- matrix(0,n, length(z_0))
+  z[1, ] <- z_0
+  for(i in 1:(n-1)){
+    z[i+1, ] <- z[i, ] - eta * h_deriv(z[i, ])
+  }
+  z
+}
+```
+
+
+```{r funcion_gradiente}
+
+grad_calc <- function(x_ent, y_ent){
+  salida_grad <- function(beta){
+    f_beta <- as.matrix(cbind(1, x_ent)) %*% beta
+    e <- y_ent - f_beta
+    grad_out <- -as.numeric(t(cbind(1, x_ent)) %*% e)
+    names(grad_out) <- c('Intercept', colnames(x_ent))
+    grad_out
+  }
+  salida_grad
+}
+```
+
+```{r}
+rss_calc <- function(datos){
+  # esta función recibe los datos (x,y) y devuelve
+  # una función f(betas) que calcula rss
+  y <- datos$lpsa
+  x <- datos$lcavol
+  fun_out <- function(beta){
+    y_hat <- beta[1] + beta[2]*x
+    e <- (y - y_hat)
+    rss <- sum(e^2)
+    0.5*rss
+  }
+  fun_out
+}
+```
+
+```{r}
+prostata <- read_csv('datos/prostate.csv') %>% select(lcavol, lpsa, train)
+head(prostata)#kable(,format = 'HTML')
+```
+
+
+```{r}
+prostata_entrena <- filter(prostata, train)
+ggplot(prostata_entrena, aes(x = lcavol, y = lpsa)) + geom_point() + theme_bw()
+```
+
+```{r}
+rss_prostata <- rss_calc(prostata_entrena)
+beta <- c(0,1.5)
+rss_prostata(beta)
+```
+
+```{r}
+ggplot(prostata_entrena, aes(x = lcavol, y = lpsa)) + geom_point() +
+  geom_abline(slope = beta[2], intercept = beta[1], col ='red') + theme_bw()
+```
+
+
+```{r}
+beta <- c(1,1)
+rss_prostata(beta)
+```
+
+```{r}
+ggplot(prostata_entrena, aes(x = lcavol, y = lpsa)) + geom_point() +
+  geom_abline(slope = beta[2], intercept = beta[1], col ='red') + theme_bw()
+``` 
+
+```{r}
+grad_prostata <- grad_calc(prostata_entrena[, 1, drop = FALSE], prostata_entrena$lpsa)
+grad_prostata(c(0,1))
+```
+
+```{r}
+grad_prostata(c(1,1))
+```
+
+```{r}
+iteraciones <- descenso(100, c(0,0), 0.005, grad_prostata)
+iteraciones
+```
+ 
+Finalmente comparamos con la función _lm_ 
+
+```{r}
+lm(prostata_entrena$lpsa ~ prostata_entrena$lcavol)
+```
+
+
+
+
