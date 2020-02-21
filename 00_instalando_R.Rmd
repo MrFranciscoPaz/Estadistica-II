@@ -1,0 +1,21 @@
+---
+title: "Instalando R"
+author: "Francisco Paz"
+date: "2/10/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Instalación de R
+
+Descarga **R** del CRAN (The Comprehensive R Archive Network), puedes usar el siguiente link [r click aquí](https://cran.r-project.org/ <- según el sistema operativo con el)
+que cuentes.
+
+Está descarga incluye R básico y un editor de textos. Les recomiendo ampliamente la descarga de **R studio** el cual es un GUI y tiene una versión gratuita. Puedes ocupar el siguiente [link](https://rstudio.com/products/rstudio/download/)
+
+R es un lenuaje que funciona con paquetes (por ejemplo tidyverse que contiene muchos paquetes entre ellos tenemos ggplot2 ) te recomiendo que experimentes decargando estos dos paquetes y hagas pruebas de visualización de datos.
