@@ -14,11 +14,12 @@ library(tidyverse)
 library(readr)
 library(dplyr)
 library(knitr)
+library(scales)
 ```
 
 El propósito de este r-markdown es prácticar la regresión lineal usando R (más adelante veremos como funciona lo mismo pero en Python). 
 
-Como vimo la clase pasada, existen distintas aproximaciones al problema, uno de ellos es el uso de mínimos cuadrados; en este caso veremos la implementación usando **Gradiente Descendente** y lo compararemos con la funcion _lm_ que viene en la paquetería básica de R.
+Como vimos la clase pasada, existen distintas aproximaciones al problema, uno de ellos es el uso de mínimos cuadrados; en este caso veremos la implementación usando **Gradiente Descendente** y lo compararemos con la funcion _lm_ que viene en la paquetería básica de R.
 ```{r }
 z_0 <- 5
 eta <- 0.4
@@ -65,7 +66,7 @@ rss_calc <- function(datos){
 
 ```{r}
 prostata <- read_csv('datos/prostate.csv') %>% select(lcavol, lpsa, train)
-head(prostata)#kable(,format = 'HTML')
+kable(head(prostata), digits = 4)
 ```
 
 
@@ -109,13 +110,136 @@ grad_prostata(c(1,1))
 iteraciones <- descenso(100, c(0,0), 0.005, grad_prostata)
 iteraciones
 ```
+
+```{r}
+iteraciones[100,1]
+``` 
+
+
  
 Finalmente comparamos con la función _lm_ 
 
 ```{r}
-lm(prostata_entrena$lpsa ~ prostata_entrena$lcavol)
+(modelo <- lm(prostata_entrena$lpsa ~ prostata_entrena$lcavol))
+```
+
+```{r}
+summary(modelo)
+```
+
+```{r}
+ggplot(prostata_entrena, aes(x = lcavol, y = lpsa)) + geom_point() +
+  geom_abline(slope = iteraciones[100,2] , intercept =iteraciones[100,1], col ='red') +
+  geom_abline(slope = modelo$coefficients[2], intercept = modelo$coefficients[1]
+              , col ='blue',linetype="dashed")+ 
+  theme_bw()
+```
+Vimos un ejemplo de regresión lineal **simple** usando **gradiente en descenso** y con la función **lm** (del paquete básico de R). ¿Puedes pensar en algún problema causado por el uso de gradiente descendente?
+
++ Es bastante recomendable normalizar las entradas, para evitar tener problemas al momento de movernos.
+
+A continuación se presentan algunos ejercicios para consolidar el uso de **lm** para regresión.
+
+
+1. Utilizando la base de datos _cars_ realiza los siguientes ejercicios.
+  + Un análisis exploratorio (al menos un scatter plot) de la base
+  
+```{r}
+plot(cars$dist,cars$speed)
+```
+  
+  + Realiza la regresión utilizando la función _lm_ y la función de gradiente que construimos.
+```{r}
+cars <- cars
+kable(head(cars))
+```
+
+```{r}
+modelo <-  lm(cars$dist ~ cars$speed)
+modelo
+```
+
+```{r}
+summary(modelo)
+```
+
+Como vimo en clase, la escala de las variables es muy importante para la solución del problema. Notemos que se reescalan las variables y el algoritmos ya converge! (a diferencia del problema que vimos en clase).
+
+```{r}
+speed <- rescale(cars$speed )
+distancia <- rescale(cars$dist)
+plot(speed, distancia)
+lm(distancia ~ speed)
+```
+
+Puedes tratar de cambiar el paso de aprendizaje  $\eta = 0.005$ y ver que ocurre.
+
+```{r}
+grad_cars<- grad_calc(speed,distancia)
+iteraciones <- descenso(100000,c(0,0),0.005,grad_cars)
+tail(iteraciones)
+```
+2. La base de datos _Boston_ (también incluida en r básico ) contiene información acerca de casa en Boston (adivinaron). La idea sería construir una regresión lineal simple y una múltiple para calcular la variable __medv__.
+
+  + Selecciona una variable que creeas esta altamente relacionada con el precio (si necesitas saber el significado de cada variable, puedes usar)
+```{r, eval=FALSE}
+?Boston  
+```
+
+  + Toma al menos 3 variables y realiza una regresión lineal múltiple.
+
+
+Aquí cargamos la vase y mostramos las primeras observaciones de la misma. 
+
+```{r}
+boston <- Boston
+kable(head(boston))
+````
+
+
+```{r}
+pairs(boston)
+```
+
+```{r}
+pairs(boston[,c(5,6,8,13,14)])
+```
+
+```{r}
+(modelo <- lm(medv ~ rm , data=boston))
+```
+
+```{r}
+summary(modelo)
+```
+
+```{r}
+ggplot(boston, aes(x = rm, y = medv)) + geom_point() +
+  geom_abline(slope = modelo$coefficients[2], intercept = modelo$coefficients[1]
+              , col ='blue',linetype="dashed")+ 
+  theme_bw()
+```
+
+Para el caso de regrsión multiple solo agregaremos las variables que nos interesan al comando del modelo. 
+
+```{r}
+(modelo <- lm(medv ~ nox + rm + dis + lstat , data=boston))
+```
+
+```{r}
+summary(modelo)
 ```
 
 
+¿Se te ocurre alguna forma de ver el ajuste como en el caso lineal?
+
+La idea de la siguiente gráfica es simple, queremos que los valores **ajustados** vs los valores **reales** queden dentro de la linea identidad. 
+
+```{r}
+ggplot(boston, aes(x = modelo$fitted.values, y = medv)) + geom_point() +
+  geom_abline(slope = 1, intercept = 0
+              , col ='blue',linetype="dashed")+ 
+  theme_bw()
+```
 
 
