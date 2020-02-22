@@ -15,6 +15,7 @@ library(readr)
 library(dplyr)
 library(knitr)
 library(scales)
+library(gridExtra)
 ```
 
 El propósito de este r-markdown es prácticar la regresión lineal usando R (más adelante veremos como funciona lo mismo pero en Python). 
@@ -163,6 +164,12 @@ modelo
 summary(modelo)
 ```
 
+```{r}
+grad_cars<- grad_calc(cars$speed,cars$dist)
+iteraciones <- descenso(100,c(0,0),0.005,grad_cars)
+iteraciones
+```
+
 Como vimo en clase, la escala de las variables es muy importante para la solución del problema. Notemos que se reescalan las variables y el algoritmos ya converge! (a diferencia del problema que vimos en clase).
 
 ```{r}
@@ -206,16 +213,16 @@ pairs(boston[,c(5,6,8,13,14)])
 ```
 
 ```{r}
-(modelo <- lm(medv ~ rm , data=boston))
+(modelo1 <- lm(medv ~ rm , data=boston))
 ```
 
 ```{r}
-summary(modelo)
+summary(modelo1)
 ```
 
 ```{r}
 ggplot(boston, aes(x = rm, y = medv)) + geom_point() +
-  geom_abline(slope = modelo$coefficients[2], intercept = modelo$coefficients[1]
+  geom_abline(slope = modelo1$coefficients[2], intercept = modelo1$coefficients[1]
               , col ='blue',linetype="dashed")+ 
   theme_bw()
 ```
@@ -236,10 +243,66 @@ summary(modelo)
 La idea de la siguiente gráfica es simple, queremos que los valores **ajustados** vs los valores **reales** queden dentro de la linea identidad. 
 
 ```{r}
-ggplot(boston, aes(x = modelo$fitted.values, y = medv)) + geom_point() +
+g1 <- ggplot(boston, aes(x = modelo$fitted.values, y = medv)) + geom_point() +
   geom_abline(slope = 1, intercept = 0
               , col ='blue',linetype="dashed")+ 
   theme_bw()
+
+g1
 ```
+
+Por ejemplo, para la regresión simple se vería así la gráfica:
+
+```{r}
+g0 <- ggplot(boston, aes(x = modelo1$fitted.values, y = medv)) + geom_point() +
+  geom_abline(slope = 1, intercept = 0
+              , col ='blue',linetype="dashed")+ 
+  theme_bw()
+
+g0
+```
+
+
+¿cómo harías para agregar todas las variables al análisis?
+
+```{r}
+(modelo <- lm(medv ~ ., data = boston))
+```
+
+```{r}
+summary(modelo)
+```
+
+¿Notas algun error?
+
+```{r}
+boston$chas <- as.factor(boston$chas)
+```
+
+
+```{r}
+(modelo <- lm(medv ~ ., data = boston))
+```
+
+```{r}
+summary(modelo)
+```
+
+
+```{r}
+g2 <- ggplot(boston, aes(x = modelo$fitted.values, y = medv)) + geom_point() +
+  geom_abline(slope = 1, intercept = 0
+              , col ='blue',linetype="dashed")+ 
+  theme_bw()
+
+g2
+```
+
+```{r}
+#library(gridExtra)
+grid.arrange(g0,g1,g2,nrow=1)
+```
+
+
 
 
