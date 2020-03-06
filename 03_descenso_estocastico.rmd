@@ -1,0 +1,145 @@
+---
+title: "03_descenso_esto"
+author: "Francisco Paz"
+date: "3/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+h <- function(x){1/(1+exp(-x))}
+# la devianza es la misma
+devianza_calc <- function(x, y){
+  dev_fun <- function(beta){
+    p_beta <- h(as.matrix(cbind(1, x)) %*% beta) 
+   -2*mean(y*log(p_beta) + (1-y)*log(1-p_beta))
+  }
+  dev_fun
+}
+# el cálculo del gradiente es el mismo, pero x_ent y y_ent serán diferentes
+grad_calc <- function(x_ent, y_ent){
+  salida_grad <- function(beta){
+    p_beta <- h(as.matrix(cbind(1, x_ent)) %*% beta) 
+    e <- y_ent - p_beta
+    grad_out <- -2*as.numeric(t(cbind(1,x_ent)) %*% e)/nrow(x_ent)
+    names(grad_out) <- c('Intercept', colnames(x_ent))
+    grad_out
+  }
+  salida_grad
+}
+```
+
+
+
+```{r}
+descenso <- function(n, z_0, eta, h_deriv){
+  z <- matrix(0,n, length(z_0))
+  z[1, ] <- z_0
+  for(i in 1:(n-1)){
+    z[i+1, ] <- z[i, ] - eta * h_deriv(z[i, ])
+  }
+  z
+}
+# esta implementación es solo para este ejemplo:
+descenso_estocástico <- function(n_epocas, z_0, eta, minilotes){
+  #minilotes es una lista
+  m <- length(minilotes)
+  z <- matrix(0, m*n_epocas, length(z_0))
+  z[1, ] <- z_0
+  for(i in 1:(m*n_epocas-1)){
+    k <- i %% m + 1
+    if(i %% m == 0){
+      #comenzar nueva época y reordenar minilotes al azar
+      minilotes <- minilotes[sample(1:m, m)]
+    }
+    h_deriv <- grad_calc(minilotes[[k]]$x, minilotes[[k]]$y)
+    z[i+1, ] <- z[i, ] - eta * h_deriv(z[i, ])
+  }
+  z
+}
+```
+
+```{r}
+p_1 <- function(x){
+  ifelse(x < 30, 0.9, 0.9 - 0.007 * (x - 15))
+}
+
+set.seed(143)
+sim_datos <- function(n){
+  x <- pmin(rexp(n, 1/30), 100)
+  probs <- p_1(x)
+  g <- rbinom(length(x), 1, probs)
+  # con dos variables de ruido:
+  dat <- data_frame(x_1 = (x - mean(x))/sd(x), 
+                    x_2 = rnorm(length(x),0,1),
+                    x_3 = rnorm(length(x),0,1),
+                    p_1 = probs, g )
+  dat %>% select(x_1, x_2, x_3, g) 
+}
+dat_ent <- sim_datos(100)
+dat_valid <- sim_datos(1000)
+glm(g ~ x_1 + x_2+ x_3 , data = dat_ent, family = 'binomial') %>% coef
+```
+
+
+```{r}
+iteraciones_descenso <- descenso(300, rep(0,4), 0.8,
+         h_deriv = grad_calc(x_ent = as.matrix(dat_ent[,c('x_1','x_2','x_3'), drop =FALSE]), 
+                             y_ent=dat_ent$g)) %>%
+  data.frame %>% rename(beta_1 = X2, beta_2 = X3)
+ggplot(iteraciones_descenso, aes(x=beta_1, y=beta_2)) + geom_point()
+```
+
+
+
+```{r}
+dat_ent$minilote <- rep(1:10, each=5)
+split_ml <- split(dat_ent %>% sample_n(nrow(dat_ent)), dat_ent$minilote) 
+minilotes <- lapply(split_ml, function(dat_ml){
+  list(x = as.matrix(dat_ml[, c('x_1','x_2','x_3'), drop=FALSE]),
+       y = dat_ml$g)
+})
+length(minilotes)
+```
+
+```{r}
+iter_estocastico <- descenso_estocástico(30, rep(0, 4), 0.1, minilotes) %>%
+  data.frame %>% rename(beta_0 = X1, beta_1 = X2, beta_2 = X3)
+ggplot(iteraciones_descenso, aes(x=beta_1, y=beta_2)) + geom_path() +
+  geom_point() +
+  geom_path(data = iter_estocastico, colour ='red', alpha=0.5) +
+  geom_point(data = iter_estocastico, colour ='red', alpha=0.5)
+```
+
+```{r}
+dev_ent <- devianza_calc(x = as.matrix(dat_ent[,c('x_1','x_2','x_3'), drop =FALSE]), 
+                             y=dat_ent$g)
+dev_valid <- devianza_calc(x = as.matrix(dat_valid[,c('x_1','x_2','x_3'), drop =FALSE]),
+                             y=dat_valid$g)
+dat_dev <- data_frame(iteracion = 1:nrow(iteraciones_descenso)) %>%
+  mutate(descenso = apply(iteraciones_descenso, 1, dev_ent),
+        descenso_estocastico = apply(iter_estocastico, 1, dev_ent)) %>%
+  gather(algoritmo, dev_ent, -iteracion) %>% mutate(tipo ='entrenamiento')
+
+dat_dev_valid <- data_frame(iteracion = 1:nrow(iteraciones_descenso)) %>%
+  mutate(descenso = apply(iteraciones_descenso, 1, dev_valid),
+         descenso_estocastico = apply(iter_estocastico, 1, dev_valid)) %>%
+  gather(algoritmo, dev_ent, -iteracion) %>% mutate(tipo ='validación')
+
+dat_dev <- bind_rows(dat_dev, dat_dev_valid)
+ggplot(filter(dat_dev, tipo=='entrenamiento'), 
+       aes(x=iteracion, y=dev_ent, colour=algoritmo)) + geom_line() +
+  geom_point() + facet_wrap(~tipo)
+```
+
+
+
+
+
+

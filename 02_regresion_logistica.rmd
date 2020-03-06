@@ -1,0 +1,93 @@
+---
+title: "02_regresion_logistica"
+author: "Francisco Paz"
+date: "2/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(scales)
+```
+
+
+```{r}
+
+h <- function(x) {exp(x)/(1+exp(x))} 
+devianza_calc <- function(x, y){
+  dev_fun <- function(beta){
+    x_beta <- as.matrix(cbind(1, x)) %*% beta
+   -2*sum(y*x_beta - log(1 + exp(x_beta)))
+  }
+  dev_fun
+}
+```
+
+
+```{r}
+grad_calc <- function(x_ent, y_ent){
+  salida_grad <- function(beta){
+    p_beta <- h(as.matrix(cbind(1, x_ent)) %*% beta) 
+    e <- y_ent - p_beta
+    grad_out <- -2*as.numeric(t(cbind(1,x_ent)) %*% e)
+    names(grad_out) <- c('Intercept', colnames(x_ent))
+    grad_out
+  }
+  salida_grad
+}
+descenso <- function(n, z_0, eta, h_deriv){
+  z <- matrix(0,n, length(z_0))
+  z[1, ] <- z_0
+  for(i in 1:(n-1)){
+    z[i+1, ] <- z[i, ] - eta * h_deriv(z[i, ])
+  }
+  z
+}
+```
+
+
+```{r}
+iris_clas <- iris %>%
+  filter(Species != 'virginica')
+table(iris_clas$Species)
+```
+
+```{r}
+length(iris_clas$Species)
+```
+
+```{r}
+iris_clas$spe <- ifelse(iris_clas$Species == "setosa",1,0)
+iris_dev <- devianza_calc(iris_clas[1:4],iris_clas$spe)
+iris_dev(c(0,0,0,0,0))
+```
+
+Aproximación de las beta's
+```{r}
+grad <- grad_calc(iris_clas[1:4],iris_clas$spe)
+grad(c(0,0,0,0,0))
+```
+
+Ahora hacemos la optimización 
+```{r}
+iter <- descenso(1000, c(0,0,0,0,0),.001,grad)
+tail(iter)
+```
+
+Ahora ve el resultado usando la función glm. ¿Notas algun error? ¿por qué pueden ser diferentes los valores?
+
+```{r, message=FALSE}
+modelo <- glm( spe ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width, data = iris_clas, family = binomial)
+
+summary(modelo)
+```
+
+
+
+
+
+
+
+
+
